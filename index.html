@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Nonplanar Transformer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        html,
+        body {
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            height: 100%;
+        }
+
+
+        #sidebar {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            bottom: 0px;
+            width: 200px;
+            margin: 5px;
+            padding-top: 10px;
+        }
+
+        #viewport {
+            position: absolute;
+            left: 205px;
+            top: 0px;
+            bottom: 0px;
+            right: 0px;
+            margin: 5px;
+        }
+
+        #modelView {
+            width: 50%;
+            height: 100%;
+            padding: 5px;
+            text-align: center;
+        }
+
+        #slicerView {
+            position: absolute;
+            top: 0px;
+            width: 50%;
+            height: 100%;
+            margin-left: 50%;
+            padding: 5px;
+            text-align: center;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="sidebar">
+        <p>
+            Upload STL:<br>
+            <input type="file" id="stlFile">
+        </p>
+        <p>
+            Slice <select id="sliceShape">
+                <option value="planar" selected>Planar (default)</option>
+                <option value="conicalOut">Conical (outward)</option>
+                <option value="conicalIn">Conical (inward)</option>
+            </select><br>
+            <label>
+                Show slice <input type="checkbox" id="showSlice" checked>
+            </label>
+        </p>
+        <p>
+            <input type="button" value="Transform STL" id="transformSTL">
+        </p>
+        <p>
+            <input type="button" value="Download STL" id="download">
+        </p>
+        <p>
+            <b>Now slice the transformed STL...</b>
+        </p>
+        <p>
+            Upload GCODE:<br>
+            <input type="file" id="gcodeFile">
+        </p>
+        <p>
+            <input type="button" value="Transform GCODE" id="transformGCODE">
+        </p>
+        <p>
+            <input type="button" value="Download GCODE" id="download">
+        </p>
+    </div>
+    <div id="viewport">
+        <div id="modelView">
+            <h5>Model View</h5>
+            <canvas width="350" height="410"></canvas>
+        </div>
+        <div id="slicerView">
+            <h5>Slicer View</h5>
+            <canvas width="350" height="410"></canvas>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import * as THREE from './libs/three.module.js';
+        import init from './src/main.js'
+
+        window.THREE = THREE;
+
+        $(() => {
+            init();
+        });
+    </script>
+</body>
+
+</html>
