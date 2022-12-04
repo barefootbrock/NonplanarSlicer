@@ -39,6 +39,7 @@
         }
 
         #modelView {
+            position: relative;
             width: 50%;
             height: 100%;
             padding: 5px;
@@ -55,8 +56,17 @@
             text-align: center;
         }
 
-        canvas {
-            border: 1px solid black;
+        .scene {
+            position: absolute;
+            top: 35px;
+            bottom: 0px;
+            left: 5px;
+            right: 5px;
+            max-height: 450px;
+        }
+
+        #startOffset, #endOffset {
+            width: 50px;
         }
     </style>
 </head>
@@ -69,10 +79,13 @@
             <input type="file" id="stlFile">
         </p>
         <p>
+            <input type="button" value="Refine STL" id="refineSTL">
+        </p>
+        <p>
             Slice <select id="sliceShape">
                 <option value="planar" selected>Planar (default)</option>
-                <option value="conicalOut">Conical (outward)</option>
-                <option value="conicalIn">Conical (inward)</option>
+                <option value="conicalUp">Conical (up)</option>
+                <option value="conicalDown">Conical (down)</option>
             </select><br>
             <label>
                 Show slice <input type="checkbox" id="showSlice" checked>
@@ -82,7 +95,7 @@
             <input type="button" value="Transform STL" id="transformSTL">
         </p>
         <p>
-            <input type="button" value="Download STL" id="download">
+            <input type="button" value="Download STL" id="downloadSTL">
         </p>
         <p>
             <b>Now slice the transformed STL...</b>
@@ -92,29 +105,45 @@
             <input type="file" id="gcodeFile">
         </p>
         <p>
+            Skip Lines:<br>
+            First <input type="number" id="startOffset" value="0" min="0" step="1">
+            Last <input type="number" id="endOffset" value="0" min="0" step="1">
+        </p>
+        <p>
+            <input type="button" value="Center GCODE" id="centerGCODE">
+        </p>
+        <p>
+            <input type="button" value="Refine GCODE" id="refineGCODE">
+        </p>
+        <p>
             <input type="button" value="Transform GCODE" id="transformGCODE">
         </p>
         <p>
-            <input type="button" value="Download GCODE" id="download">
+            <input type="button" value="Download GCODE" id="downloadGCODE">
         </p>
     </div>
+
     <div id="viewport">
         <div id="modelView">
             <h5>Model View</h5>
-            <canvas width="350" height="410"></canvas>
+            <div class="scene"></div>
         </div>
         <div id="slicerView">
             <h5>Slicer View</h5>
-            <canvas width="350" height="410"></canvas>
+            <div class="scene"></div>
         </div>
     </div>
 
 
     <script type="module">
         import * as THREE from './libs/three.module.js';
-        import init from './src/main.js'
+        import init from './src/main.js';
+        import * as math from './src/math.js';
+        import * as parser from './src/parser.js';
 
         window.THREE = THREE;
+        window.math = math;
+        window.parser = parser;
 
         $(() => {
             init();
