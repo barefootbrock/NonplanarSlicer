@@ -149,6 +149,16 @@ const Utils = {
         element.click();
       
         document.body.removeChild(element);
+      },
+
+      evalFunc(funcStr, argNames) {
+        //return a function, that will eval funcStr with given arguments as argNames
+        let code = "";
+        code += argNames.map(
+            (name, i) => "const " + name + " = arguments['" + i + "'];"
+        ).join("\n");
+        code += "return " + funcStr + ";";
+        return new Function(code);
       }
 }
 

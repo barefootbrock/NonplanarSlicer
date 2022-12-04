@@ -83,4 +83,25 @@ class ParabolicTransform extends Transform3D {
     }
 }
 
-export {Transform3D, IdentityTransform, ConicalTransform, ParabolicTransform};
+class CustomTransform extends Transform3D {
+    //x' = f(x, y, z)
+    //y' = g(x, y, z)
+    //z' = h(x, y, z)
+    constructor(f, g, h) {
+        super();
+        this.f = f;
+        this.g = g;
+        this.h = h;
+    }
+
+    evaluate(X) {
+        const x = X.x, y = X.y, z = X.z;
+        return new THREE.Vector3(
+            this.f(x, y, z),
+            this.g(x, y, z),
+            this.h(x, y, z)
+        );
+    }
+}
+
+export {Transform3D, IdentityTransform, ConicalTransform, ParabolicTransform, CustomTransform};

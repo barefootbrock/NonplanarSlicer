@@ -192,7 +192,7 @@ function initStlUI() {
             return;
         }
 
-        const maxEdgeLength = Number(prompt("Max edge length (0 to skip refinement)", 0) || 0);
+        const maxEdgeLength = Number(prompt("Max edge length", 1) || 0);
         if (maxEdgeLength > 0) {
             const geometry = mesh.geometry;
             const count = geometry.getAttribute('position').count / 3;
@@ -218,6 +218,15 @@ function initStlUI() {
         } else if (selection == "conicalDown") {
             const angle = Number(prompt("Cone Angle"));
             transform = new math.ConicalTransform(-angle);
+        } else if (selection == "custom") {
+            const f = prompt("x'(x, y, z) =", 'x');
+            const g = prompt("y'(x, y, z) =", 'y');
+            const h = prompt("z'(x, y, z) =", 'z');
+            transform = new math.CustomTransform(
+                Utils.evalFunc(f, ['x', 'y', 'z']),
+                Utils.evalFunc(g, ['x', 'y', 'z']),
+                Utils.evalFunc(h, ['x', 'y', 'z'])
+            );
         }
 
         updateSlice();
@@ -281,55 +290,6 @@ function initGcodeUI() {
         color.needsUpdate = true;
     }
 
-    function transformGcode(lines, transform, firstLine, lastLine) {
-        let X, Y, Z, E, F;
-        let lastX, lastY, lastZ;
-        const newLines = [];
-        let count = 0;
-        
-        lines.map((line) => {
-            const data = parseLine(line);
-            if (!isMove(data)) {
-                newLines.push(line);
-                return;
-            }
-    
-            if (data.X !== undefined) X = data.X;
-            if (data.Y !== undefined) Y = data.Y;
-            if (data.Z !== undefined) Z = data.Z;
-            E = data.E || 0;
-            F = data.F;
-            count++;
-    
-            if (count - 1 < firstLine || count - 1 > lastLine) {
-                newLines.push(line);
-                lastX = X;
-                lastY = Y;
-                lastZ = Z;
-                return;
-            }
-    
-            const dist = Math.sqrt((X-lastX)*(X-lastX) + (Y-lastY)*(Y-lastY) + (Z-lastZ)*(Z-lastZ));
-            const segments = Math.ceil(dist / maxLineLength);
-    
-            for (let i = 1; i <= segments; i++) {
-                newLines.push(G01(
-                    lastX + (X - lastX) / segments * i,
-                    lastY + (Y - lastY) / segments * i,
-                    lastZ + (Z - lastZ) / segments * i,
-                    E / segments,
-                    (i == 1) ? F : undefined
-                ));
-            }
-    
-            lastX = X;
-            lastY = Y;
-            lastZ = Z;
-        });
-    
-        return newLines;
-    }
-
     $("#gcodeFile").change(async function () {
         if (this.files.length == 0) return;
 
@@ -360,6 +320,7 @@ function initGcodeUI() {
         if (mesh1) {
             mesh1.material.transparent = true;
             mesh1.material.opacity = 0.4;
+            scene1.needsRender = true;
         }
 
         const mesh2 = scene2.scene.getObjectByName("STL");

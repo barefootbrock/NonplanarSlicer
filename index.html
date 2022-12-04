@@ -5,9 +5,7 @@
     <meta charset="utf-8">
     <title>Nonplanar Transformer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <style>
         html,
@@ -35,14 +33,14 @@
             top: 0px;
             bottom: 0px;
             right: 0px;
-            margin: 5px;
+            margin: 0px;
         }
 
         #modelView {
-            position: relative;
+            position: absolute;
             width: 50%;
             height: 100%;
-            padding: 5px;
+            padding: 0px;
             text-align: center;
         }
 
@@ -52,21 +50,28 @@
             width: 50%;
             height: 100%;
             margin-left: 50%;
-            padding: 5px;
+            padding: 0px;
             text-align: center;
         }
 
         .scene {
             position: absolute;
-            top: 35px;
+            top: 45px;
             bottom: 0px;
-            left: 5px;
-            right: 5px;
+            left: 2px;
+            right: 2px;
             max-height: 450px;
+            border: 1px solid black;
         }
 
-        #startOffset, #endOffset {
+        #startOffset,
+        #endOffset {
             width: 50px;
+        }
+
+        p {
+            margin-top: 0.75em;
+            margin-bottom: 0.75em;
         }
     </style>
 </head>
@@ -75,6 +80,16 @@
 
     <div id="sidebar">
         <p>
+            Slice Shape:<br>
+            <select id="sliceShape">
+                <option value="planar" selected>Planar (default)</option>
+                <option value="conicalUp">Conical (up)</option>
+                <option value="conicalDown">Conical (down)</option>
+                <option value="custom">Custom</option>
+            </select><br>
+        </p>
+        <hr>
+        <p>
             Upload STL:<br>
             <input type="file" id="stlFile">
         </p>
@@ -82,32 +97,19 @@
             <input type="button" value="Refine STL" id="refineSTL">
         </p>
         <p>
-            Slice <select id="sliceShape">
-                <option value="planar" selected>Planar (default)</option>
-                <option value="conicalUp">Conical (up)</option>
-                <option value="conicalDown">Conical (down)</option>
-            </select><br>
-            <label>
-                Show slice <input type="checkbox" id="showSlice" checked>
-            </label>
-        </p>
-        <p>
             <input type="button" value="Transform STL" id="transformSTL">
         </p>
         <p>
             <input type="button" value="Download STL" id="downloadSTL">
         </p>
-        <p>
-            <b>Now slice the transformed STL...</b>
-        </p>
+        <hr>
         <p>
             Upload GCODE:<br>
             <input type="file" id="gcodeFile">
         </p>
         <p>
-            Skip Lines:<br>
-            First <input type="number" id="startOffset" value="0" min="0" step="1">
-            Last <input type="number" id="endOffset" value="0" min="0" step="1">
+            Skip first <input type="number" id="startOffset" value="0" min="0" step="1"> lines<br>
+            Skip last <input type="number" id="endOffset" value="0" min="0" step="1"> lines<br>
         </p>
         <p>
             <input type="button" value="Center GCODE" id="centerGCODE">
@@ -125,11 +127,11 @@
 
     <div id="viewport">
         <div id="modelView">
-            <h5>Model View</h5>
+            <h3>Model View</h3>
             <div class="scene"></div>
         </div>
         <div id="slicerView">
-            <h5>Slicer View</h5>
+            <h3>Slicer View</h3>
             <div class="scene"></div>
         </div>
     </div>
@@ -139,11 +141,13 @@
         import * as THREE from './libs/three.module.js';
         import init from './src/main.js';
         import * as math from './src/math.js';
+        import { Utils } from './src/utils.js';
         import * as parser from './src/parser.js';
 
         window.THREE = THREE;
         window.math = math;
         window.parser = parser;
+        window.utils = Utils;
 
         $(() => {
             init();
