@@ -11,6 +11,7 @@ import { extractPoints, parseLine, refineMoves, splitLines, transformPoints } fr
 let scene1, scene2;
 
 let transform = new math.IdentityTransform();
+const transformOffset = new THREE.Vector3();
 
 
 function createScene(wrapper) {
@@ -45,7 +46,7 @@ function createScene(wrapper) {
     );
     scene.add(gridHelper);
 
-    const geometry = new THREE.PlaneGeometry(50, 50, 25, 25);
+    const geometry = new THREE.PlaneGeometry(60, 60, 30, 30);
     const material = new THREE.MeshStandardMaterial({
         color: 0xffbd33,
         side: THREE.DoubleSide,
@@ -97,8 +98,8 @@ function transformGeometry(geometry, func) {
 
     for (let i = 0; i < pos.count; i++) {
         temp.set(pos.getX(i), pos.getY(i), pos.getZ(i))
-        const result = func(temp, i);
-        pos.setXYZ(i, result.x, result.y, result.z);
+        func(temp, i);
+        pos.setXYZ(i, temp.x, temp.y, temp.z);
     }
 
     if (geometry.hasAttribute('normal')) {
@@ -114,7 +115,7 @@ function updateSlice() {
 
     slice1.geometry.copy(slice2.geometry);
     slice1.geometry.applyMatrix4(slice2.matrix);
-    transformGeometry(slice1.geometry, (v) => transform.evaluate(v));
+    transformGeometry(slice1.geometry, (v) => transform.evaluate(v.add(transformOffset)));
     slice1.geometry.computeVertexNormals();
 
     const mesh1 = scene1.scene.getObjectByName('STL');
@@ -172,41 +173,7 @@ function initViewport() {
 }
 
 function initStlUI() {
-    $("#stlFile").change(async function () {
-        if (this.files.length == 0) return;
-
-        const file = this.files[0];
-        const geometry = await Utils.loadSTLGeometry(file);
-        const material = new MeshMaterial({ side: THREE.DoubleSide });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = "STL";
-
-        scene1.scene.add(mesh);
-        scene1.needsRender = true;
-    }).val(null);
-
-    $("#refineSTL").click(async function () {
-        const mesh = scene1.scene.getObjectByName("STL");
-        if (!mesh) {
-            alert("No STL loaded!");
-            return;
-        }
-
-        const maxEdgeLength = Number(prompt("Max edge length", 1) || 0);
-        if (maxEdgeLength > 0) {
-            const geometry = mesh.geometry;
-            const count = geometry.getAttribute('position').count / 3;
-
-            const newGeometry = Utils.refineGeometry(geometry, maxEdgeLength);
-            geometry.copy(newGeometry);
-            scene1.needsRender = true;
-
-            const newCount = newGeometry.getAttribute('position').count / 3;
-            alert("Added " + (newCount - count) + " faces.\nThe STL now has " + newCount + " faces");
-        }
-    });
-
-    $("#sliceShape").change(async function () {
+    $("#sliceShape").change(function () {
         const selection = this.value;
         if (selection == "planar") {
             transform = new math.IdentityTransform();
@@ -232,7 +199,45 @@ function initStlUI() {
         updateSlice();
     }).val('planar').change();
 
-    $("#transformSTL").click(async function () {
+
+    $("#stlFile").change(async function () {
+        if (this.files.length == 0) return;
+
+        const file = this.files[0];
+        const geometry = await Utils.loadSTLGeometry(file);
+        const material = new MeshMaterial({ side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = "STL";
+
+        const oldMesh = scene1.scene.getObjectByName("STL");
+        if (oldMesh) scene1.scene.remove(oldMesh);
+
+        scene1.scene.add(mesh);
+        scene1.needsRender = true;
+    }).val(null);
+
+    $("#refineSTL").click(function () {
+        const mesh = scene1.scene.getObjectByName("STL");
+        if (!mesh) {
+            alert("No STL loaded!");
+            return;
+        }
+
+        const maxEdgeLength = Number(prompt("Max edge length", 1));
+        if (!maxEdgeLength) return;
+
+        const geometry = mesh.geometry;
+        const count = geometry.getAttribute('position').count / 3;
+
+        const newGeometry = Utils.refineGeometry(geometry, maxEdgeLength);
+        geometry.copy(newGeometry);
+        scene1.needsRender = true;
+
+        const newCount = newGeometry.getAttribute('position').count / 3;
+        alert("Added " + (newCount - count) + " faces.\nThe STL now has " + newCount + " faces");
+    });
+
+    $("#transformSTL").click(function () {
         const mesh = scene1.scene.getObjectByName("STL");
         if (!mesh) {
             alert("No STL loaded!");
@@ -244,7 +249,7 @@ function initStlUI() {
 
         const newGeometry = mesh.geometry.clone();
         newGeometry.applyMatrix4(mesh.matrix);
-        transformGeometry(newGeometry, (v) => transform.inverse(v));
+        transformGeometry(newGeometry, (v) => transform.inverse(v).sub(transformOffset));
 
         const material = new MeshMaterial({ side: THREE.DoubleSide });
         const newMesh = new THREE.Mesh(newGeometry, material);
@@ -259,22 +264,39 @@ function initStlUI() {
         scene2.needsRender = true;
     });
 
-    $("#downloadSTL").click(async function () {
+    $("#adjustZ").click(function () {
+        const mesh = scene2.scene.getObjectByName("STL");
+        const geometry = mesh.geometry;
+        
+        geometry.computeBoundingBox();
+        const box = geometry.boundingBox;
+        transformOffset.z += box.min.z;
+        
+        geometry.translate(0, 0, -box.min.z);
+        geometry.setAttribute('slicerPos', geometry.getAttribute('position'));
+
+        updateSlice();
+        scene2.needsRender = true;
+    });
+
+    $("#downloadSTL").click(function () {
         const mesh = scene2.scene.getObjectByName("STL");
         if (!mesh) {
             alert("Please transform the STL first");
             return;
         }
 
-        Utils.saveSTL(mesh, "transformed.stl");
+        const origName = $("#stlFile")[0].files[0].name;
+        let { name, ext } = Utils.splitFileName(origName);
+        Utils.saveSTL(mesh, name + "_transformed.stl");
     });
 }
 
 function initGcodeUI() {
     let gcode = "";
     let newGcode = "";
-    let startOffset = 0;
-    let endOffset = 0;
+    let startOffset = 9;
+    let endOffset = 4;
 
     function updateColors(geometry) {
         const color = geometry.getAttribute('color');
@@ -313,6 +335,9 @@ function initGcodeUI() {
         const line = new THREE.Line(geometry, material);
         line.name = 'GCODE';
 
+        const oldLine = scene2.scene.getObjectByName("GCODE");
+        if (oldLine) scene2.scene.remove(oldLine);
+
         scene2.scene.add(line);
         scene2.needsRender = true;
 
@@ -337,7 +362,7 @@ function initGcodeUI() {
             updateColors(lines.geometry);
             scene2.needsRender = true;
         }
-    }).val(0);
+    }).val(startOffset);
 
     $("#endOffset").change(function () {
         endOffset = Number(this.value);
@@ -346,9 +371,9 @@ function initGcodeUI() {
             updateColors(lines.geometry);
             scene2.needsRender = true;
         }
-    }).val(0);
+    }).val(endOffset);
 
-    $("#centerGCODE").click(async function () {
+    $("#centerGCODE").click(function () {
         const lines = scene2.scene.getObjectByName('GCODE');
         if (!lines) return;
 
@@ -376,51 +401,61 @@ function initGcodeUI() {
         scene2.needsRender = true;
     });
 
-    $("#refineGCODE").click(async function () {
+    $("#refineGCODE").click(function () {
         const linesObj = scene2.scene.getObjectByName('GCODE');
         if (!linesObj) return;
+
         const geometry = linesObj.geometry;
         const pointCount = geometry.getAttribute('position').count;
 
-        const maxLength = prompt("Max segment length:", 1);
-        if (Number(maxLength)) {
-            const origLength = gcode.length;
-            gcode = refineMoves(gcode, maxLength, startOffset, pointCount - endOffset);
-            // console.log(gcode.join('\n'))
+        const maxLength = Number(prompt("Max segment length:", 1));
+        if (!maxLength) return;
 
-            alert("Added " + (gcode.length - origLength) + " new lines of GCODE");
+        const origLength = gcode.length;
+        gcode = refineMoves(gcode, maxLength, startOffset, pointCount - endOffset);
 
-            const points = new Float32Array(extractPoints(gcode));
-            const colors = new Float32Array(points.length);
-            
-            geometry.setAttribute('position', new THREE.BufferAttribute(points, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            geometry.setAttribute('slicerPos', geometry.getAttribute('position'));
-            updateColors(geometry);
+        alert("Added " + (gcode.length - origLength) + " new lines of GCODE");
 
-            scene2.needsRender = true;
-        }
+        const points = new Float32Array(extractPoints(gcode));
+        const colors = new Float32Array(points.length);
+        
+        geometry.setAttribute('position', new THREE.BufferAttribute(points, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('slicerPos', geometry.getAttribute('position'));
+        updateColors(geometry);
+
+        scene2.needsRender = true;
     });
 
-    $("#transformGCODE").click(async function () {
+    $("#transformGCODE").click(function () {
         const linesObj = scene2.scene.getObjectByName('GCODE');
         if (!linesObj) return;
+
         const geometry = linesObj.geometry;
         const pointCount = geometry.getAttribute('position').count;
-        const vec3 = new THREE.Vector3();
+        const temp = new THREE.Vector3();
+        const _jac = new THREE.Matrix3();
+        
+        let zMin = prompt("Clamp Z values to:");
+        if (zMin == '') zMin = -1e6;
+        else zMin = Number(zMin) || 0;
 
         newGcode = transformPoints(gcode, (X, Y, Z, E) => {
-            vec3.set(X, Y, Z);
-            vec3.add(linesObj.position);
-            const newPoint = transform.evaluate(vec3);
-            newPoint.sub(linesObj.position);
+            temp.set(X, Y, Z);
+            temp.add(linesObj.position);
+            temp.add(transformOffset);
 
-            const det = transform.jacobian(vec3).determinant();
+            const det = transform.jacobian(temp, _jac).determinant();
+            transform.evaluate(temp);
+
+            temp.sub(linesObj.position);
+
+            if (temp.z < zMin) temp.z = zMin;
 
             return {
-                X: newPoint.x,
-                Y: newPoint.y,
-                Z: newPoint.z,
+                X: temp.x,
+                Y: temp.y,
+                Z: temp.z,
                 E: E * det
             }
         }, startOffset, pointCount - endOffset);
@@ -450,7 +485,10 @@ function initGcodeUI() {
     });
 
     $("#downloadGCODE").click(() => {
-        Utils.download("back-transformed.gcode", newGcode.join('\n'));
+        const origName = $("#gcodeFile")[0].files[0].name;
+        let { name, ext } = Utils.splitFileName(origName);
+
+        Utils.download(name + "_transformed.gcode", newGcode.join('\n'));
     });
 }
 
